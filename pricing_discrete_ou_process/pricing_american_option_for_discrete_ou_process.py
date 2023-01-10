@@ -16,7 +16,7 @@ num_partition = parameters["Deep_Learning"]["num_partition"]
 expiration = parameters["OU_Process"]["T"]
 
 
-def payoffs_function(model_value):
+def payoff_function(model_value):
     return max(0, np.exp(model_value) - strike_price)
 
 
@@ -107,7 +107,7 @@ def european_option_pricing_discrete_ou(initial_value=0.01, time=0.01):
     k = int(num_partition * time)
     weights = [initial_value + deltas for deltas in weight_deltas(k)]
     probabilities = [sum_probability_for_weight(k, i) for i in range(k + 1)]
-    return sum([payoffs_function(weight) * p for weight, p in zip(weights, probabilities)])
+    return sum([payoff_function(weight) * p for weight, p in zip(weights, probabilities)])
 
 
 def american_option_pricing_discrete_ou(initial_value=0.01):
