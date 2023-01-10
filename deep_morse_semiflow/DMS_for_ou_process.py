@@ -80,7 +80,7 @@ class CustomLoss(nn.Module):
         super().__init__()
 
     def forward(self, output, target, diff, phi, penalty):
-        return torch.mean((target - output) ** 2 / len_partition + diff ** 2
+        return torch.mean((target - output) ** 2 / len_partition - diff ** 2
                           + (1 / penalty) ** 2 * func.relu(output - phi) ** 2)
 
 
@@ -117,7 +117,7 @@ def main(penalty=0.01):
     test_datas = torch.tensor(np.array([[j / 10] for j in range(-50, 50 + 1)]),
                               requires_grad=False, dtype=torch.float32).to(device)
     initial_variables = test_datas.cpu().clone().detach().numpy().flatten().tolist()
-    value = model(test_datas).cpu().clone().detach().numpy().flatten().tolist()
+    value = ((-1) * model(test_datas)).cpu().clone().detach().numpy().flatten().tolist()
     return initial_variables, value, 'epsilon={}'.format(penalty)
 
 
