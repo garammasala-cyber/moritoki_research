@@ -2,9 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-#確率pを普通のOU_processとスケーリングを合わせるために変更する。
+
 def up_probability(n=100, T=1, alpha=1.5, sigma=1.2, potential=0.5):
-    p =  np.exp(-(alpha * potential / sigma) * np.sqrt(T/n))/(np.exp((alpha * potential / sigma) * np.sqrt(T/n)) + np.exp(-(alpha * potential / sigma) * np.sqrt(T/n)))
+    p = np.exp(-(alpha * potential / sigma) * np.sqrt(T / n)) / (
+            np.exp((alpha * potential / sigma) * np.sqrt(T / n)) + np.exp(
+        -(alpha * potential / sigma) * np.sqrt(T / n)))
     return p
 
 
@@ -13,27 +15,29 @@ def Delta(n=100, T=1, sigma=1.2):
     return delta
 
 
-def discrete_OU_model_generator (n=100, T=1, alpha=1.5, sigma=1.2, z_0 = 0, fig_mode=False):
+def discrete_ou_model_generator(n=100, T=1, alpha=1.5, sigma=1.2, initial_value=0, fig_mode=False):
     delta_t = 1 * T / n
-    partition = [i * delta_t for i in range(n*T + 1)]
+    partition = [j * delta_t for j in range(n * T + 1)]
 
-    Z = np.zeros(n*T + 1)
-    #Z[0] = z_0
+    discrete_OU_process = np.zeros(n * T + 1)
+    discrete_OU_process[0] = initial_value
 
-    for i in range(1, n*T+1):
-        increment = np.random.choice([Delta(n, T, sigma), -Delta(n, T, sigma)], p=[up_probability(alpha,Z[i-1]), 1-up_probability(alpha,Z[i-1])])
-        Z[i] = Z[i-1] + increment
+    for j in range(1, n * T + 1):
+        increment = np.random.choice([Delta(n, T, sigma), -Delta(n, T, sigma)],
+                                     p=[up_probability(alpha, discrete_OU_process[j - 1]),
+                                        1 - up_probability(alpha, discrete_OU_process[j - 1])])
+        discrete_OU_process[j] = discrete_OU_process[j - 1] + increment
 
-    data_array = np.array([partition, Z]).T
+    data_array = np.array([partition, discrete_OU_process]).T
 
-    #DataFrameでまとめる
+    # DataFrameでまとめる
     df = pd.DataFrame(data_array, columns=['timestamp', 'process'])
 
     if fig_mode:
         fig, ax = plt.subplots()
 
         # plot the process X
-        ax.plot(partition, Z, color='blue', label='process')
+        ax.plot(partition, discrete_OU_process, color='blue', label='process')
         ax.set_xlabel('time(s)')
         ax.set_ylabel('process X')
 
@@ -46,13 +50,14 @@ def discrete_OU_model_generator (n=100, T=1, alpha=1.5, sigma=1.2, z_0 = 0, fig_
         plt.legend()
         plt.show()
 
-    return df, Z, partition
+    return df, discrete_OU_process, partition
 
 
 if __name__ == '__main__':
     import json
-    with open('parameter.json') as p:
-        parameter = json.load(p)
+
+    with open('../parameter.json') as parameter:
+        parameter = json.load(parameter)
 
     num_path = parameter["OU_Process"]["num_path"]
     n = parameter["Deep_Learning"]["num_partition"]
@@ -63,7 +68,7 @@ if __name__ == '__main__':
 
     fig, ax = plt.subplots()
     for i in range(num_path):
-        df, Z, partition = discrete_OU_model_generator(n, T, alpha, sigma, z_0, False)
+        df, Z, partition = discrete_ou_model_generator(n, T, alpha, sigma, z_0, False)
         ax.plot(partition, Z)
     ax.set_xlabel('time(s)')
     ax.set_ylabel('process Z')

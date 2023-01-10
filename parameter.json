@@ -1,26 +1,25 @@
 {
     "Deep_Learning" : {
         "num_epoch" : 10,
-        "num_data" : 100,
-        "num_testdata" : 100,
-        "num_partition" : 10,
+        "num_data" : 10,
+        "num_testdata" : 10,
+        "num_partition" : 100,
         "learning_rate" : 0.01
     },
 
     "Option" : {
-        "strike_price" : 0.2
+        "strike_price" : 5
     },
 
     "Hyperparameter" : {
         "epsilon" : 1e-1
     },
-    
     "OU_Process" : {
         "num_path" : 3,
         "T" : 1,
         "alpha" : 1.2,
         "mu" : 0,
-        "sigma" : 3.1,
-        "x_0" : 0
+        "sigma" : 1.5,
+        "initial_value": 0
     }
 }

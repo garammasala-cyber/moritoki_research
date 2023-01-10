@@ -1,4 +1,4 @@
-#パッケージのインストール
+# パッケージのインストール
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
@@ -7,27 +7,26 @@ import torch.optim as optim
 from torch.utils.data import TensorDataset, DataLoader
 
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import csv
+# import csv
 
 #
-#from functorch import grad, vmap, vjp, jacrev
+# from functorch import grad, vmap, vjp, jacrev
 from torch.autograd import grad
 
-#OU_Processを生成するファイル
-import OU_model_generator
-simulate_OU = OU_model_generator.simulate_OU
+# OU_Processを生成するファイル
+from others import OU_model_generator
 
-#学習時間を計測
-import time
-#学習状況の進捗を表示
+simulate_OU = OU_model_generator.generate_OU
+
+# 学習時間を計測
+# 学習状況の進捗を表示
 from tqdm import tqdm
 
-#各種パラメータ
-#parameter.jsonを参照する
+# 各種パラメータ
+# parameter.jsonを参照する
 import json
-with open('parameter.json') as p:
+
+with open('../parameter.json') as p:
     parameter = json.load(p)
 
 num_epoch = parameter["Deep_Learning"]["num_epoch"]
@@ -40,26 +39,27 @@ epsilon = parameter["Hyperparameter"]["epsilon"]
 
 K = parameter["Option"]["strike_price"]
 
-T = parameter["OU_Process"]["T"]
+expiration = parameter["OU_Process"]["T"]
 alpha = parameter["OU_Process"]["alpha"]
 sigma = parameter["OU_Process"]["sigma"]
-x_0 = parameter["OU_Process"]["x_0"]
+x_0 = parameter["OU_Process"]["initial_value"]
 
 h = 1e-4
-r = 0.01  #interest rate
-q = 0.008  #dividend
-T = parameter["OU_Process"]["T"]  #expiration
-len_partition = T / num_partition
+r = 0.01  # interest rate
+q = 0.008  # dividend
+expiration = parameter["OU_Process"]["T"]  # expiration
+len_partition = expiration / num_partition
 
-#CPUとGPUどっちも使えるようにするやつ(Macはそんなに意味ないかも)
+# CPUとGPUどっちも使えるようにするやつ(Macはそんなに意味ないかも)
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 print(torch.cuda.is_available())
 
-#print(torch.cuda.current_device())
+
+# print(torch.cuda.current_device())
 
 
-#モデルを構築
+# モデルを構築
 class Net(nn.Module):
 
     def __init__(self):
@@ -81,25 +81,27 @@ class Net(nn.Module):
         return x
 
 
-#Phi オプションを行使したときのペイオフ、(アメリカン)オプションなので(x-K)^+
+# Phi オプションを行使したときのペイオフ、(アメリカン)オプションなので(x-K)^+
 def phi(X):
     y = [[float(max(x - K, 0))] for x in X]
     y = torch.tensor(y, requires_grad=True, dtype=torch.float32)
     return y
 
 
-#データを生成(dataloaderとdatageneratorを使う)
+# データを生成(dataloaderとdatageneratorを使う)
 def OU_process_gen(n=1000):
-    OU_processes = np.array([simulate_OU(n, T, alpha, 0, sigma, x_0, False)[1]])
-    for i in range(n-1):
-        OU_processes = np.append(OU_processes, np.array([OU_model_generator.simulate_OU(n, T, alpha, 0, sigma, x_0, False)[1]]), axis=0)
+    OU_processes = np.array([simulate_OU(n, expiration, alpha, 0, sigma, x_0, False)[1]])
+    for i in range(n - 1):
+        OU_processes = np.append(OU_processes, np.array(
+            [OU_model_generator.generate_OU(n, expiration, alpha, 0, sigma, x_0, False)[1]]), axis=0)
     """X = torch.tensor(np.random.uniform(low=a, high=b, size=n).reshape(n, 1),
                      requires_grad=False,
                      dtype=torch.float32)
     y = phi(X)
     dataset = TensorDataset(X, y)
     dataloder = DataLoader(dataset, batch_size=100, shuffle=True)"""
-    return OU_processes.T
+    return OU_processes.expiration
+
 
 def data_loder(X, y):
     dataset = TensorDataset(X, y)
@@ -107,36 +109,33 @@ def data_loder(X, y):
     return dataloder
 
 
-#数値微分
+# 数値微分
 def differential(f, x):
     return (f(x + h) - f(x - h)) / (2 * h)
 
 
-#2階微分
+# 2階微分
 def sec_diff(f, x):
     return (differential(f, x + h) - differential(f, x - h)) / (2 * h)
 
 
-#x2階微分のところの計算
+# x2階微分のところの計算
 def times(X, Y):
     xy = torch.mul(X, Y)
     return torch.tensor(xy, requires_grad=True, dtype=torch.float32)
 
 
-#オリジナルの誤差関数を定義
+# オリジナルの誤差関数を定義
 class CustomLoss(nn.Module):
 
     def __init__(self):
         super().__init__()
 
     def forward(self, output, target, diff, Phi):
-        #新しい版(スライド見る感じこっち？)
-        #loss = (diff ** 2 + (1/epsilon) ** 2 * F.relu(target - output) ** 2).mean()
-        #loss = ((target - output) ** 2 / len_partition + diff ** 2 + (1/epsilon) ** 2 * F.relu(target - output) ** 2).mean()
-        loss = ((target - output)**2 / len_partition + diff**2 +
-                (1 / epsilon)**2 * F.relu(Phi - output)**2).mean()
+        # 新しい版(スライド見る感じこっち？)
+        loss = ((target - output) ** 2 / len_partition + diff ** 2 +
+                (1 / epsilon) ** 2 * F.relu(Phi - output) ** 2).mean()
         return loss
-
 
 
 """def test():
@@ -167,6 +166,7 @@ def test2():
     print(*inputs)
     grad_weight_per_example = vmap(grad(compute_loss), in_dims=(None, 0, 0))(*inputs)"""
 
+
 def gradient(inputs, outputs):
     d_points = torch.ones_like(outputs, requires_grad=False, device=outputs.device)
     points_grad = grad(
@@ -178,6 +178,7 @@ def gradient(inputs, outputs):
         only_inputs=True)[0][:, -3:]
     return points_grad
 
+
 def main():
     """test2()
     def test_model(x):
@@ -185,9 +186,10 @@ def main():
     OU_processes = OU_process_gen(num_data)
     y = phi(np.array([[input_data] for input_data in OU_processes[num_partition]]))
 
-    for i in tqdm(range(1,num_partition+1)):
-        X = torch.tensor(np.array([[input_data] for input_data in OU_processes[num_partition - i]]), requires_grad=False,
-                     dtype=torch.float32)
+    for i in tqdm(range(1, num_partition + 1)):
+        X = torch.tensor(np.array([[input_data] for input_data in OU_processes[num_partition - i]]),
+                         requires_grad=False,
+                         dtype=torch.float32)
         traindataloder = data_loder(X, y)
 
         model = Net()
@@ -201,20 +203,20 @@ def main():
                 inputs = inputs.to(device)
                 target = target.to(device)
                 output = model(inputs)
-                #diff = (model(inputs + h) - model(inputs - h)) / (2 * h)
-             
-                #print(inputs)
-                #diff = jacrev(jacrev(model))
-                #diff = gradient(inputs, output)
+                # diff = (model(inputs + h) - model(inputs - h)) / (2 * h)
+
+                # print(inputs)
+                # diff = jacrev(jacrev(model))
+                # diff = gradient(inputs, output)
                 diff = sec_diff(model, inputs)
-                
+
                 Phi = phi(inputs).to(device)
                 loss = criterion(output, target, diff, Phi)
                 loss.backward()
                 optimizer.step()
 
-            #if n % 50 == 0:
-            #print(loss)
+            # if n % 50 == 0:
+            # print(loss)
 
         """#テストデータをとる
         X = data_gen(n=num_testdata)[0]
@@ -271,6 +273,7 @@ def main():
             "/Users/garammasala/sss21/csv/to_csv_out_{}.csv".format(i))"""
 
         y = model(X).clone().detach().requires_grad_(True)
+        print(y)
 
     """firstX = []
     Time = []

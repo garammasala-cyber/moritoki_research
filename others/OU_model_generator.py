@@ -10,7 +10,7 @@ import pandas as pd
 '''
 
 import json
-with open('parameter.json') as p:
+with open('../parameter.json') as p:
     parameter = json.load(p)
 
 #ブラウン運動の発生
@@ -35,7 +35,7 @@ def brownian_motion(n, T):
 
 
 #OUモデルの作成
-def simulate_OU(n=100, T=1, theta=1, mu=0, sigma=1.2, x_0=0, fig_mode=False):
+def generate_OU(n=100, T=1, theta=1, mu=0, sigma=1.2, x_0=0, fig_mode=False):
     # BMの作成
     random_increment = brownian_motion(n, T)[1]
     partition = brownian_motion(n, T)[2]
@@ -92,7 +92,7 @@ if __name__ == '__main__':
     fig, ax = plt.subplots()
 
     for i in range(num_path):
-        df2, X, partition = simulate_OU(n, T, alpha, mu, sigma, x_0, False)
+        df2, X, partition = generate_OU(n, T, alpha, mu, sigma, x_0, False)
         print(X)
         ax.plot(partition, X)
     
