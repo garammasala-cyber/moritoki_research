@@ -4,14 +4,14 @@ import pricing_discrete_ou_process.pricing_american_option_for_discrete_ou_proce
 
 
 def main():
-    penalties = [10 ** (-i) for i in range(3, 6)]
+    penalties = [10 ** (-i) for i in range(4, 6 + 1)]
     for penalty in penalties:
         test_x, values, label = deep_morse_semiflow.DMS_for_ou_process.main(penalty)
         plt.plot(test_x, values, label=label)
     test_x, values, label = pricing_discrete_ou_process.pricing_american_option_for_discrete_ou_process.main()
     plt.plot(test_x, values, label=label)
     plt.legend()
-    plt.show()
+    plt.savefig("experiment.png")
 
 
 if __name__ == '__main__':
